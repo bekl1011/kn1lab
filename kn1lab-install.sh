@@ -78,11 +78,11 @@ if [[ "$OSTYPE" == "msys"* || "$OSTYPE" == "cygwin" ]]; then
         exit 1
     fi
     if [[ ! -f "/c/Program Files/Oracle/VirtualBox/VBoxManage.exe" ]]; then
-        echo "Missing: mkisofs (expected at C:\Program Files (x86)\cdrtools\mkisofs.exe)"
+        echo "Missing: VirtualBox (expected at C:\Program Files\VirtualBox\VBoxManage.exe)"
         exit 1
     fi
-    if [[ ! -f "/c/Program Files (x86)/cdrtools/mkisofs.exe" ]]; then
-        echo "Missing: mkisofs (expected at C:\Program Files (x86)\cdrtools\mkisofs.exe)"
+    if [[ ! -f "/c/Program Files (x86)/Windows Kits/10/Assessment and Deployment Kit/Deployment Tools/amd64/Oscdimg/oscdimg.exe" ]]; then
+        echo "Missing: oscdimg (expected at C:\Program Files (x86)\Windows Kits\10\Assessment and Deployment Kit\Deployment Tools\amd64\Oscdimg\oscdimg.exe)"
         exit 1
     fi
     powershell.exe -Command "Start-BitsTransfer -Source '$SHA256SUMS_URL' -Destination SHA256SUMS"
@@ -219,7 +219,7 @@ EOF
     if [[ "$OS_TYPE" == "Linux" || "$OS_TYPE" == "Mac" ]]; then
         mkisofs -output "$CLOUD_INIT_ISO_PATH" -volid cidata -joliet -rock "$CLOUD_CONFIG_TMP_DIR"
     else
-        powershell.exe -Command "& 'C:\Program Files (x86)\cdrtools\mkisofs.exe' -n -m -lCIDATA '$CLOUD_CONFIG_TMP_DIR' '$CLOUD_INIT_ISO_PATH'"
+        powershell.exe -Command "& 'C:\Program Files (x86)\Windows Kits\10\Assessment and Deployment Kit\Deployment Tools\amd64\Oscdimg\oscdimg.exe' -n -m -lCIDATA '$CLOUD_CONFIG_TMP_DIR' '$CLOUD_INIT_ISO_PATH'"
     fi
 else
     echo "Using existing cloud-init ISO at $CLOUD_INIT_ISO_PATH"
