@@ -73,15 +73,14 @@ UBUNTU_VERSION="ubuntu-22.04-cloud"
 if [[ "$OSTYPE" == "msys"* || "$OSTYPE" == "cygwin" ]]; then
     OS_TYPE="Windows"
     SCRIPT_DIR=$(cygpath -w "$SCRIPT_DIR")
-    if [ [-z $(echo "$PATH" | grep -i "virtualbox") ]]; then
-        echo "VirtualBox is not in PATH"
-        exit 1
-    fi
     if ! command -v powershell.exe >/dev/null 2>&1; then
         echo "PowerShell is NOT on PATH"
         exit 1
     fi
-    check_programs VBoxManage
+    if [[ ! -f "/c/Program Files/Oracle/VirtualBox/VBoxManage.exe" ]]; then
+        echo "Missing: mkisofs (expected at C:\Program Files (x86)\cdrtools\mkisofs.exe)"
+        exit 1
+    fi
     if [[ ! -f "/c/Program Files (x86)/cdrtools/mkisofs.exe" ]]; then
         echo "Missing: mkisofs (expected at C:\Program Files (x86)\cdrtools\mkisofs.exe)"
         exit 1
@@ -220,7 +219,7 @@ EOF
     if [[ "$OS_TYPE" == "Linux" || "$OS_TYPE" == "Mac" ]]; then
         mkisofs -output "$CLOUD_INIT_ISO_PATH" -volid cidata -joliet -rock "$CLOUD_CONFIG_TMP_DIR"
     else
-        powershell.exe -Command "& 'C:\Program Files (x86)\cdrtools\mkisofs.exe' -output '$CLOUD_INIT_ISO_PATH' -volid cidata -joliet -rock '$CLOUD_CONFIG_TMP_DIR'"
+        powershell.exe -Command "& 'C:\Program Files (x86)\cdrtools\mkisofs.exe' -n -m -lCIDATA '$CLOUD_CONFIG_TMP_DIR' '$CLOUD_INIT_ISO_PATH'"
     fi
 else
     echo "Using existing cloud-init ISO at $CLOUD_INIT_ISO_PATH"
@@ -233,20 +232,20 @@ create_virtualbox_vm() {
     echo "Setting up VM using VirtualBox and OVA..."
 
     # Import OVA into VirtualBox
-    VBoxManage import "$CLOUD_IMG_PATH" --vsys 0 --vmname "$VM_NAME"
+    "/c/Program Files/Oracle/VirtualBox/VBoxManage.exe" import "$CLOUD_IMG_PATH" --vsys 0 --vmname "$VM_NAME"
 
     # Modify VM settings
-    VBoxManage modifyvm "$VM_NAME" --memory $MEMORY_SIZE --cpus $CPU_COUNT
+    "/c/Program Files/Oracle/VirtualBox/VBoxManage.exe" modifyvm "$VM_NAME" --memory $MEMORY_SIZE --cpus $CPU_COUNT
 
     # Attach the cloud-init ISO to the existing IDE controller (already included in the OVA)
-    VBoxManage storageattach "$VM_NAME" --storagectl "IDE" --port 1 --device 0 --type dvddrive --medium "$CLOUD_INIT_ISO_PATH"
+    "/c/Program Files/Oracle/VirtualBox/VBoxManage.exe" storageattach "$VM_NAME" --storagectl "IDE" --port 1 --device 0 --type dvddrive --medium "$CLOUD_INIT_ISO_PATH"
 
     # Configure network (NAT with port forwarding)
-    VBoxManage modifyvm "$VM_NAME" --nic1 nat
-    VBoxManage modifyvm "$VM_NAME" --natpf1 "ssh,tcp,127.0.0.1,$SSH_HOST_PORT,,$SSH_GUEST_PORT"
+    "/c/Program Files/Oracle/VirtualBox/VBoxManage.exe" modifyvm "$VM_NAME" --nic1 nat
+    "/c/Program Files/Oracle/VirtualBox/VBoxManage.exe" modifyvm "$VM_NAME" --natpf1 "ssh,tcp,127.0.0.1,$SSH_HOST_PORT,,$SSH_GUEST_PORT"
 
     # Start VM in headless mode
-    VBoxManage startvm "$VM_NAME" --type headless
+    "/c/Program Files/Oracle/VirtualBox/VBoxManage.exe" startvm "$VM_NAME" --type headless
 }
 
 ####################################################################################################
@@ -261,14 +260,6 @@ create_qemu_vm() {
         wget -O "$QEMU_EFI_PATH" "$QEMU_EFI_URL"
     else
         echo "Using existing QEMU EFI Image at $QEMU_EFI_PATH"
-    fi
-
-    # Create cloud init iso image
-    if [[ ! -f "$CLOUD_INIT_ISO_PATH" ]]; then
-        echo "Cloud Init Image not found, createing..."
-        mkisofs -output "$CLOUD_INIT_ISO_PATH" -volid cidata -joliet -rock {"$CLOUD_CONFIG_PATH","$CLOUD_CONFIG_TMP_DIR/meta-data"}
-    else
-        echo "Using existing Cloud Init Image at $CLOUD_INIT_ISO_PATH"
     fi
 
     # Resize the IMG file to the specified size (in MB)
