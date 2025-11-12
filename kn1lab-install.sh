@@ -223,7 +223,7 @@ EOF
         mkisofs -output "$CLOUD_INIT_ISO_PATH" -volid cidata -joliet -rock "$CLOUD_CONFIG_TMP_DIR"
     else
         git clone https://github.com/bekl1011/mkisofs
-        powershell.exe -Command "& '$MKISOFS_TMP_DIR/mkisofs.exe' -n -m -lCIDATA '$CLOUD_CONFIG_TMP_DIR' '$CLOUD_INIT_ISO_PATH'"
+        powershell.exe -Command "& '$MKISOFS_TMP_DIR/mkisofs.exe' -output '$CLOUD_INIT_ISO_PATH' -volid cidata -joliet -rock '$CLOUD_CONFIG_TMP_DIR'"
         rm -rf "$MKISOFS_TMP_DIR"
     fi
 else
