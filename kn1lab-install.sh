@@ -77,16 +77,18 @@ if [[ "$OSTYPE" == "msys"* || "$OSTYPE" == "cygwin" ]]; then
         echo "PowerShell is NOT on PATH"
         exit 1
     fi
-    if [[ ! -f "/c/Program Files/Oracle/VirtualBox/VBoxManage.exe" ]]; then
-        echo "Missing: VirtualBox (expected at C:\Program Files\VirtualBox\VBoxManage.exe)"
-        exit 1
-    fi
-    if [[ ! -f "/c/Program Files (x86)/Windows Kits/10/Assessment and Deployment Kit/Deployment Tools/amd64/Oscdimg/oscdimg.exe" ]]; then
-        echo "Missing: oscdimg (expected at C:\Program Files (x86)\Windows Kits\10\Assessment and Deployment Kit\Deployment Tools\amd64\Oscdimg\oscdimg.exe)"
-        exit 1
-    fi
-    powershell.exe -Command "Start-BitsTransfer -Source '$SHA256SUMS_URL' -Destination SHA256SUMS"
 
+    if [[ -n "%ProgramFiles_Arm%" ]]; then
+        ARCH = "arm64"
+        echo "Detected Windows on ARM. Preparing for QEMU setup."
+        check_programs qemu-system-aarch64 qemu-img
+    else
+        if [[ ! -f "/c/Program Files/Oracle/VirtualBox/VBoxManage.exe" ]]; then
+            echo "Missing: VirtualBox (expected at C:\Program Files\VirtualBox\VBoxManage.exe)"
+            exit 1
+        fi
+    powershell.exe -Command "Start-BitsTransfer -Source '$SHA256SUMS_URL' -Destination SHA256SUMS"
+    fi
 elif [[ "$OSTYPE" == "darwin"* ]]; then
     OS_TYPE="Mac"
     command -v brew &>/dev/null || { echo "Missing: Homebrew"; exit 1; }
@@ -145,6 +147,7 @@ download_cloud_iso() {
 # Set paths relative to the script's location
 CLOUD_IMG_PATH="$SCRIPT_DIR/$UBUNTU_VERSION$FILE_ENDING"
 CLOUD_CONFIG_TMP_DIR="$SCRIPT_DIR/tmp"
+MKISOFS_TMP_DIR="$SCRIPT_DIR/mkisofs"
 CLOUD_CONFIG_PATH="$CLOUD_CONFIG_TMP_DIR/user-data"
 CLOUD_INIT_ISO_PATH="$SCRIPT_DIR/$CLOUD_INIT_ISO"
 QEMU_EFI_PATH="$SCRIPT_DIR/QEMU_EFI.fd"
@@ -219,7 +222,9 @@ EOF
     if [[ "$OS_TYPE" == "Linux" || "$OS_TYPE" == "Mac" ]]; then
         mkisofs -output "$CLOUD_INIT_ISO_PATH" -volid cidata -joliet -rock "$CLOUD_CONFIG_TMP_DIR"
     else
-        powershell.exe -Command "& 'C:\Program Files (x86)\Windows Kits\10\Assessment and Deployment Kit\Deployment Tools\amd64\Oscdimg\oscdimg.exe' -n -m -lCIDATA '$CLOUD_CONFIG_TMP_DIR' '$CLOUD_INIT_ISO_PATH'"
+        git clone https://github.com/bekl1011/mkisofs
+        powershell.exe -Command "& '$MKISOFS_TMP_DIR/mkisofs.exe' -n -m -lCIDATA '$CLOUD_CONFIG_TMP_DIR' '$CLOUD_INIT_ISO_PATH'"
+        rm -rf "$MKISOFS_TMP_DIR"
     fi
 else
     echo "Using existing cloud-init ISO at $CLOUD_INIT_ISO_PATH"
@@ -268,19 +273,35 @@ create_qemu_vm() {
         qemu-img resize $UBUNTU_VERSION$FILE_ENDING "$DISC_SIZE"M
     fi
 
-    # Run the VM using QEMU with ARM architecture
-    qemu-system-aarch64 \
-        -m "$MEMORY_SIZE"M \
-        -accel hvf \
-        -cpu host \
-        -smp $CPU_COUNT \
-        -M virt \
-        --display none -daemonize -pidfile pidfile.txt \
-        -bios QEMU_EFI.fd \
- 	    -device virtio-net-pci,netdev=net0 \
-        -netdev user,id=net0,hostfwd=tcp::"$SSH_HOST_PORT"-:"$SSH_GUEST_PORT" \
-        -hda $CLOUD_IMG_PATH \
-        -cdrom $CLOUD_INIT_ISO_PATH
+    
+    if [[ "$OS_TYPE" == "Mac" ]]; then
+        # Run the VM using QEMU with ARM architecture on Mac
+        qemu-system-aarch64 \
+            -m "$MEMORY_SIZE"M \
+            -accel hvf \
+            -cpu host \
+            -smp $CPU_COUNT \
+            -M virt \
+            --display none -daemonize -pidfile pidfile.txt \
+            -bios QEMU_EFI.fd \
+            -device virtio-net-pci,netdev=net0 \
+            -netdev user,id=net0,hostfwd=tcp::"$SSH_HOST_PORT"-:"$SSH_GUEST_PORT" \
+            -hda $CLOUD_IMG_PATH \
+            -cdrom $CLOUD_INIT_ISO_PATH
+    elif [[ "$OS_TYPE" == "Windows" ]]; then
+        #  Run the VM using QEMU with ARM architecture on Windows
+        "/c/Program Files/qemu/qemu-system-aarch64.exe" \
+            -m "$MEMORY_SIZE"M \
+            -cpu cortex-a72  \
+            -smp $CPU_COUNT \
+            -M virt \
+            -bios "$QEMU_EFI_PATH" \
+            -device virtio-net-pci,netdev=net0 \
+            -netdev user,id=net0,hostfwd=tcp::"$SSH_HOST_PORT"-:22 \
+            -hda "$CLOUD_IMG_PATH" \
+            -device virtio-blk-pci,drive=cloudinit \
+            -drive file="$CLOUD_INIT_ISO_PATH",if=none,id=cloudinit,format=raw
+    fi
 }
 
 ####################################################################################################
@@ -304,7 +325,7 @@ fi
 # Clean up tmp folder if it was created by the script
 
 if [[ ! -f "$CLOUD_CONFIG_TMP_DIR" ]]; then
-     rm -rf "$CLOUD_CONFIG_TMP_DIR"
+    rm -rf "$CLOUD_CONFIG_TMP_DIR"
 fi
 
 ####################################################################################################
