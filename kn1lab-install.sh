@@ -282,7 +282,11 @@ create_qemu_vm() {
     # Download the EFI image
     if [[ ! -f "$QEMU_EFI_PATH" ]]; then
         echo "QEMU EFI Image not found, downloading..."
-        wget -O "$QEMU_EFI_PATH" "$QEMU_EFI_URL"
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            wget -O "$QEMU_EFI_PATH" "$QEMU_EFI_URL"
+	    else
+	        powershell.exe -Command "Start-BitsTransfer -Source '$QEMU_EFI_URL' -Destination $QEMU_EFI_PATH"
+	    fi
     else
         echo "Using existing QEMU EFI Image at $QEMU_EFI_PATH"
     fi

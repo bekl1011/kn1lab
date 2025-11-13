@@ -4,7 +4,7 @@
 * Sie benötigen zur Bearbeitung [Visual Studio Code (VS Code)](https://code.visualstudio.com) mit der Erweiterung [Remote SSH](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-ssh). 
 * Nachdem Sie die IDE mit der entsprechenden Erweiterung eingerichtet haben, benötigen Sie noch folgende Programme in Abhängigkeit von Ihrem Betriebssystem:
   * Windows(AMD-Architektur): Die Programme [Virtualbox](https://www.virtualbox.org/wiki/Downloads) und [git](https://git-scm.com/install/windows).
-  * Windows(ARM-Architektur): Das Programm [Qemu](https://www.qemu.org/download/#windows) und [git](https://git-scm.com/install/windows).
+  * Windows(ARM-Architektur): Die Programme [Qemu](https://www.qemu.org/download/#windows) und [git](https://git-scm.com/install/windows).
   * Linux: Das Programm [Virtualbox](https://www.virtualbox.org/wiki/Downloads) und [GenIsoImage](https://wiki.ubuntuusers.de/genisoimage/).
   * Mac(Silicon): Den Paket-Manager [Homebrew](https://brew.sh/), um damit die Pakete `qemu`, `wget` und `cdrtools` zu instalieren.
   * Mac(Intel): Den Paket-Manager [Homebrew](https://brew.sh/), um damit die Pakete `virtualbox`,`wget` und `cdrtools` zu instalieren.
@@ -19,7 +19,7 @@
 
 * Anschließend können Sie sich mit der Maschine über ssh verbinden, indem Sie diese als Host in Visual Studio Code anlegen. Dafür können Sie über den blauen Remote-Window-Knopf im linken unteren Eck mit der Option `Connect to Host` und der darauffolgenden Option `Add new SSH Host` unter Angabe von `ssh -p 2222 labrat@localhost` die Einrichtung durchführen.
 * Nach der Einrichtung können Sie sich mit der Maschine über deren Auswahl in der Option `Connect to Host` verbinden.
-* Sobald Sie mit der Maschine verbunden sind, müssen Sie durch die Option `Open Folder` das Verzeichnis des Labor-Repos (`kn1lab`) öffnen und das Skript `setup.sh` ausführen.
+* Sobald Sie mit der Maschine verbunden sind, müssen Sie durch die Option `Open Folder` das Home-Verzeichnis Ihres Nutzers "labrat" öffnen und das Skript "setup.sh" im Unterordner "kn1lab" ausführen.
 * Dafür müssen Sie in Visual Studio Code ein Terminal öffnen und das Skript mit `./setup.sh` ausführen.
 * Dieses Skript setzt Ihre Umgebung final auf und installiert auch alle benötigten Erweiterungen für Visual Studio Code, sodass Sie danach alle Versuche bearbeiten können.
 
