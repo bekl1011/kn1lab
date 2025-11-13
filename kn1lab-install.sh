@@ -78,10 +78,17 @@ if [[ "$OSTYPE" == "msys"* || "$OSTYPE" == "cygwin" ]]; then
         exit 1
     fi
 
-    if [[ "$PROCESSOR_IDENTIFIER" =~ "^ARM" ]]; then
+    if [[ "$PROCESSOR_IDENTIFIER" =~ ^ARM ]]; then
         ARCH = "arm64"
         echo "Detected Windows on ARM. Preparing for QEMU setup."
-        check_programs qemu-system-aarch64 qemu-img
+        if [[ ! -f "/c/Program Files/qemu/qemu-system-aarch64.exe" ]]; then
+            echo "Missing: Qemu (expected at C:\Program Files\qemu\qemu-system-aarch64.exe)"
+            exit 1
+        fi
+        if [[ ! -f "/c/Program Files/qemu/qemu-img.exe" ]]; then
+            echo "Missing: Qemu-Img (expected at C:\Program Files\qemu\qemu-img.exe)"
+            exit 1
+        fi
     else
         if [[ ! -f "/c/Program Files/Oracle/VirtualBox/VBoxManage.exe" ]]; then
             echo "Missing: VirtualBox (expected at C:\Program Files\VirtualBox\VBoxManage.exe)"
