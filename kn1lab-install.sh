@@ -79,7 +79,7 @@ if [[ "$OSTYPE" == "msys"* || "$OSTYPE" == "cygwin" ]]; then
     fi
 
     if [[ "$PROCESSOR_IDENTIFIER" =~ ^ARM ]]; then
-        ARCH = "arm64"
+        ARCH="arm64"
         echo "Detected Windows on ARM. Preparing for QEMU setup."
         if [[ ! -f "/c/Program Files/qemu/qemu-system-aarch64.exe" ]]; then
             echo "Missing: Qemu (expected at C:\Program Files\qemu\qemu-system-aarch64.exe)"
