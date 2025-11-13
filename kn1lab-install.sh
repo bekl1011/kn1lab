@@ -222,7 +222,7 @@ EOF
     if [[ "$OS_TYPE" == "Linux" || "$OS_TYPE" == "Mac" ]]; then
         mkisofs -output "$CLOUD_INIT_ISO_PATH" -volid cidata -joliet -rock "$CLOUD_CONFIG_TMP_DIR"
     else
-        git clone https://github.com/bekl1011/mkisofs
+        GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/bekl1011/mkisofs
         powershell.exe -Command "& '$MKISOFS_TMP_DIR/mkisofs.exe' -output '$CLOUD_INIT_ISO_PATH' -volid cidata -joliet -rock '$CLOUD_CONFIG_TMP_DIR'"
         rm -rf "$MKISOFS_TMP_DIR"
     fi
@@ -233,8 +233,8 @@ fi
 ####################################################################################################
 # Function to create a VM using VirtualBox with OVA
 
-create_virtualbox_vm() {
-    echo "Setting up VM using VirtualBox and OVA..."
+create_virtualbox_vm_windows() {
+    echo "Setting up VM using VirtualBox and OVA on windows..."
 
     # Import OVA into VirtualBox
     "/c/Program Files/Oracle/VirtualBox/VBoxManage.exe" import "$CLOUD_IMG_PATH" --vsys 0 --vmname "$VM_NAME"
@@ -251,6 +251,26 @@ create_virtualbox_vm() {
 
     # Start VM in headless mode
     "/c/Program Files/Oracle/VirtualBox/VBoxManage.exe" startvm "$VM_NAME" --type headless
+}
+
+create_virtualbox_vm_linux() {
+    echo "Setting up VM using VirtualBox and OVA on Linux..."
+
+    # Import OVA into VirtualBox
+    "C:/usr/lib/virualbox/VBoxManage.exe" import "$CLOUD_IMG_PATH" --vsys 0 --vmname "$VM_NAME"
+
+    # Modify VM settings
+    "C:/usr/lib/virualbox/VBoxManage.exe" modifyvm "$VM_NAME" --memory $MEMORY_SIZE --cpus $CPU_COUNT
+
+    # Attach the cloud-init ISO to the existing IDE controller (already included in the OVA)
+    "C:/usr/lib/virualbox/VBoxManage.exe" storageattach "$VM_NAME" --storagectl "IDE" --port 1 --device 0 --type dvddrive --medium "$CLOUD_INIT_ISO_PATH"
+
+    # Configure network (NAT with port forwarding)
+    "C:/usr/lib/virualbox/VBoxManage.exe" modifyvm "$VM_NAME" --nic1 nat
+    "C:/usr/lib/virualbox/VBoxManage.exe" modifyvm "$VM_NAME" --natpf1 "ssh,tcp,127.0.0.1,$SSH_HOST_PORT,,$SSH_GUEST_PORT"
+
+    # Start VM in headless mode
+    "C:/usr/lib/virualbox/VBoxManage.exe" startvm "$VM_NAME" --type headless
 }
 
 ####################################################################################################
@@ -307,8 +327,10 @@ create_qemu_vm() {
 ####################################################################################################
 # Main logic to determine the VM setup based on architecture and OS
 
-if [[ "$VM_TYPE" == "VirtualBox" ]]; then
-    create_virtualbox_vm
+if [[ "$VM_TYPE" == "VirtualBox" && "$OS_TYPE" == "Windows" ]]; then
+    create_virtualbox_vm_windows
+elif [[ "$VM_TYPE" == "VirtualBox" && "$OS_TYPE" == "Linux" ]]; then
+    create_virtualbox_vm_linux
 elif [[ "$VM_TYPE" == "QEMU" ]]; then
     create_qemu_vm
 fi

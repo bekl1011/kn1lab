@@ -3,11 +3,12 @@
 ## Aufsetzen der Umgebung
 * Sie benötigen zur Bearbeitung [Visual Studio Code (VS Code)](https://code.visualstudio.com) mit der Erweiterung [Remote SSH](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-ssh). 
 * Nachdem Sie die IDE mit der entsprechenden Erweiterung eingerichtet haben, benötigen Sie noch folgende Programme in Abhängigkeit von Ihrem Betriebssystem:
-  * Windows: Die Programme [Virtualbox](https://www.virtualbox.org/wiki/Downloads), [Windows Assessment and Development Kit](https://learn.microsoft.com/en-us/windows-hardware/get-started/adk-install) (Installation der Deployment Tools ausreichend) und [git](https://git-scm.com/install/windows).
-  * Linux: Das Programm [Virtualbox](https://www.virtualbox.org/wiki/Downloads) und [CdrTools](https://sourceforge.net/projects/cdrtoolswin/).
+  * Windows(AMD-Architektur): Die Programme [Virtualbox](https://www.virtualbox.org/wiki/Downloads) und [git](https://git-scm.com/install/windows).
+  * Windows(ARM-Architektur): Das Programm [Qemu](https://www.qemu.org/download/#windows) und [git](https://git-scm.com/install/windows).
+  * Linux: Das Programm [Virtualbox](https://www.virtualbox.org/wiki/Downloads) und [GenIsoImage](https://wiki.ubuntuusers.de/genisoimage/).
   * Mac(Silicon): Den Paket-Manager [Homebrew](https://brew.sh/), um damit die Pakete `qemu`, `wget` und `cdrtools` zu instalieren.
   * Mac(Intel): Den Paket-Manager [Homebrew](https://brew.sh/), um damit die Pakete `virtualbox`,`wget` und `cdrtools` zu instalieren.
-* `Wichtig`: Bei Windows müssen Sie die Programme `Virtualbox` und `Windows Assessment and Development Kit` in den Standardverzeichnissen, welche Ihnen bei der Installation vorgeschlagen werden, installieren.
+* `Wichtig`: Bei Windows müssen Sie das Programm `Virtualbox` im Standardverzeichnis, welches Ihnen bei der Installation vorgeschlagen wird, installieren.
 * Außerdem benötigen Sie die in diesem Repo befindliche Datei `kn1lab-install.sh`.
 * Führen Sie unter Linux und Mac noch den Befehl `chmod +x kn1lab-install.sh` im entsprechenden Verzeichnis aus, um das Skript ausführbar zu machen.
 * Mit dem folgenden Befehl können Sie darufhin in einem Terminal eine Virtuelle Ubuntu Maschine aufsetzen `(unter Windows müssen Sie für die Ausführung des Skripts Git Bash verwenden, da das Skript in Powershell oder der Eingabeaufforderung nicht ausgeführt werden kann)`: 
