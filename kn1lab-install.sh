@@ -331,7 +331,9 @@ create_qemu_vm() {
             -netdev user,id=net0,hostfwd=tcp::"$SSH_HOST_PORT"-:22 \
             -hda "$CLOUD_IMG_PATH" \
             -device virtio-blk-pci,drive=cloudinit \
-            -drive file="$CLOUD_INIT_ISO_PATH",if=none,id=cloudinit,format=raw
+            -drive file="$CLOUD_INIT_ISO_PATH",if=none,id=cloudinit,format=raw \
+            -display none \
+            -serial mon:stdio
     fi
 }
 
