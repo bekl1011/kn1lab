@@ -77,25 +77,11 @@ if [[ "$OSTYPE" == "msys"* || "$OSTYPE" == "cygwin" ]]; then
         echo "PowerShell is NOT on PATH"
         exit 1
     fi
-
-    if [[ "$PROCESSOR_IDENTIFIER" =~ ^ARM ]]; then
-        ARCH="arm64"
-        echo "Detected Windows on ARM. Preparing for QEMU setup."
-        if [[ ! -f "/c/Program Files/qemu/qemu-system-aarch64.exe" ]]; then
-            echo "Missing: Qemu (expected at C:\Program Files\qemu\qemu-system-aarch64.exe)"
-            exit 1
-        fi
-        if [[ ! -f "/c/Program Files/qemu/qemu-img.exe" ]]; then
-            echo "Missing: Qemu-Img (expected at C:\Program Files\qemu\qemu-img.exe)"
-            exit 1
-        fi
-    else
-        if [[ ! -f "/c/Program Files/Oracle/VirtualBox/VBoxManage.exe" ]]; then
-            echo "Missing: VirtualBox (expected at C:\Program Files\VirtualBox\VBoxManage.exe)"
-            exit 1
-        fi
-    powershell.exe -Command "Start-BitsTransfer -Source '$SHA256SUMS_URL' -Destination SHA256SUMS"
+    if [[ ! -f "/c/Program Files/Oracle/VirtualBox/VBoxManage.exe" ]]; then
+        echo "Missing: VirtualBox (expected at C:\Program Files\VirtualBox\VBoxManage.exe)"
+        exit 1
     fi
+    powershell.exe -Command "Start-BitsTransfer -Source '$SHA256SUMS_URL' -Destination SHA256SUMS"
 elif [[ "$OSTYPE" == "darwin"* ]]; then
     OS_TYPE="Mac"
     command -v brew &>/dev/null || { echo "Missing: Homebrew"; exit 1; }
@@ -289,11 +275,7 @@ create_qemu_vm() {
     # Download the EFI image
     if [[ ! -f "$QEMU_EFI_PATH" ]]; then
         echo "QEMU EFI Image not found, downloading..."
-        if [[ "$OSTYPE" == "darwin"* ]]; then
-            wget -O "$QEMU_EFI_PATH" "$QEMU_EFI_URL"
-	    else
-	        powershell.exe -Command "Start-BitsTransfer -Source '$QEMU_EFI_URL' -Destination $QEMU_EFI_PATH"
-	    fi
+        wget -O "$QEMU_EFI_PATH" "$QEMU_EFI_URL"
     else
         echo "Using existing QEMU EFI Image at $QEMU_EFI_PATH"
     fi
@@ -303,38 +285,19 @@ create_qemu_vm() {
         echo "Rezising disk..."
         qemu-img resize $UBUNTU_VERSION$FILE_ENDING "$DISC_SIZE"M
     fi
-
-    
-    if [[ "$OS_TYPE" == "Mac" ]]; then
-        # Run the VM using QEMU with ARM architecture on Mac
-        qemu-system-aarch64 \
-            -m "$MEMORY_SIZE"M \
-            -accel hvf \
-            -cpu host \
-            -smp $CPU_COUNT \
-            -M virt \
-            --display none -daemonize -pidfile pidfile.txt \
-            -bios QEMU_EFI.fd \
-            -device virtio-net-pci,netdev=net0 \
-            -netdev user,id=net0,hostfwd=tcp::"$SSH_HOST_PORT"-:"$SSH_GUEST_PORT" \
-            -hda $CLOUD_IMG_PATH \
-            -cdrom $CLOUD_INIT_ISO_PATH
-    elif [[ "$OS_TYPE" == "Windows" ]]; then
-        #  Run the VM using QEMU with ARM architecture on Windows
-        "/c/Program Files/qemu/qemu-system-aarch64.exe" \
-            -m "$MEMORY_SIZE"M \
-            -cpu cortex-a72  \
-            -smp $CPU_COUNT \
-            -M virt \
-            -bios "$QEMU_EFI_PATH" \
-            -device virtio-net-pci,netdev=net0 \
-            -netdev user,id=net0,hostfwd=tcp::"$SSH_HOST_PORT"-:22 \
-            -hda "$CLOUD_IMG_PATH" \
-            -device virtio-blk-pci,drive=cloudinit \
-            -drive file="$CLOUD_INIT_ISO_PATH",if=none,id=cloudinit,format=raw \
-            -display none \
-            -serial mon:stdio
-    fi
+    # Run the VM using QEMU with ARM architecture on Mac
+    qemu-system-aarch64 \
+        -m "$MEMORY_SIZE"M \
+        -accel hvf \
+        -cpu host \
+        -smp $CPU_COUNT \
+        -M virt \
+        --display none -daemonize -pidfile pidfile.txt \
+        -bios QEMU_EFI.fd \
+        -device virtio-net-pci,netdev=net0 \
+        -netdev user,id=net0,hostfwd=tcp::"$SSH_HOST_PORT"-:"$SSH_GUEST_PORT" \
+        -hda $CLOUD_IMG_PATH \
+        -cdrom $CLOUD_INIT_ISO_PATH
 }
 
 ####################################################################################################
