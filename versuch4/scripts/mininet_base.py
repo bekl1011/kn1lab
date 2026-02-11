@@ -8,8 +8,6 @@ from mininet.topo import Topo
 from mininet.util import waitListening
 import os
 
-
-
 class NetTopo(Topo):
     def __init__(self, loss):
         Topo.__init__(self)
@@ -44,6 +42,15 @@ def sshd(net):
     root.setIP('10.0.0.4/24', intf=intf)
 
     net.start()
+    net.pingAll()
+    
+    c1, sv1 = net.get('c1', 'sv1')
+    c1.cmd(f'arp -s 10.11.0.3 {sv1.MAC(intf="sv1-eth1")}')
+    sv1.cmd(f'arp -s 10.11.0.1 {c1.MAC(intf="c1-eth1")}')
+    c2 = net.get('c2')
+    c2.cmd(f'arp -s 10.12.0.3 {sv1.MAC(intf="sv1-eth2")}')
+    sv1.cmd(f'arp -s 10.12.0.2 {c2.MAC(intf="c2-eth1")}')
+    
     root.cmd('route add -net 10.0.0.0/24 dev ' + str(intf))
 
     for host in net.hosts:
