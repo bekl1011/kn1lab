@@ -3,8 +3,7 @@
 ## Aufsetzen der Umgebung
 * Sie benötigen zur Bearbeitung [Visual Studio Code (VS Code)](https://code.visualstudio.com) mit der Erweiterung [Remote SSH](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-ssh). 
 * Nachdem Sie die IDE mit der entsprechenden Erweiterung eingerichtet haben, benötigen Sie noch folgende Programme in Abhängigkeit von Ihrem Betriebssystem:
-  * Windows(AMD-Architektur): Die Programme [Virtualbox](https://www.virtualbox.org/wiki/Downloads) und [git](https://git-scm.com/install/windows).
-  * Windows(ARM-Architektur): Die Programme [Qemu](https://www.qemu.org/download/#windows) und [git](https://git-scm.com/install/windows).
+  * Windows: Die Programme [Virtualbox](https://www.virtualbox.org/wiki/Downloads) und [git](https://git-scm.com/install/windows).
   * Linux: Das Programm [Virtualbox](https://www.virtualbox.org/wiki/Downloads) und [GenIsoImage](https://wiki.ubuntuusers.de/genisoimage/).
   * Mac(Silicon): Den Paket-Manager [Homebrew](https://brew.sh/), um damit die Pakete `qemu`, `wget` und `cdrtools` zu instalieren.
   * Mac(Intel): Den Paket-Manager [Homebrew](https://brew.sh/), um damit die Pakete `virtualbox`,`wget` und `cdrtools` zu instalieren.
