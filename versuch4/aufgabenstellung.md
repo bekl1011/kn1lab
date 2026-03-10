@@ -66,7 +66,7 @@ cpunetlog -l --nics <Liste der Schnittstellen>
 gestartet werden, wenn der Netzdurchsatz der in der Liste angegebenen Schnittstellen aufgezeichnet werden soll (vgl. *Tabelle 1*). Im Fenster sollte dann oben rechts in der Ecke `Logging: enabled` stehen. Die Log-Dateien werden nach `/tmp/cpunetlog` geschrieben und können mit dem Kommando
 
 ```bash
-%run /CPUnetPLOT/cnl_plot.py  -nsc 0.0011 /tmp/cpunetlog/<Log-Datei>
+%run /CPUnetPLOT/cnl_plot.py -nc -tn -nsc 0.0011 /tmp/cpunetlog/<Log-Datei>
 ```
 
 im Jupyter-Notebook `plotting.ipynb` grafisch dargestellt werden. `-nsc 0.0011` setzt das Maximum der Datenrate auf der Y-Achse auf 1,1 Mbit/s. *Abbildung 2* zeigt eine beispielhafte Ausgabe. Legen Sie bitte für jede Messung, die Sie machen eine eigene Zelle Code in Ihrem Jupyter-Notebook an und speichern die Ausgabe dieser Zelle für Ihre Abgabe.<br>
