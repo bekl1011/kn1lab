@@ -73,21 +73,15 @@ UBUNTU_VERSION="ubuntu-22.04-cloud"
 if [[ "$OSTYPE" == "msys"* || "$OSTYPE" == "cygwin" ]]; then
     OS_TYPE="Windows"
     SCRIPT_DIR=$(cygpath -w "$SCRIPT_DIR")
-    if [ [-z $(echo "$PATH" | grep -i "virtualbox") ]]; then
-        echo "VirtualBox is not in PATH"
-        exit 1
-    fi
     if ! command -v powershell.exe >/dev/null 2>&1; then
         echo "PowerShell is NOT on PATH"
         exit 1
     fi
-    check_programs VBoxManage
-    if [[ ! -f "/c/Program Files (x86)/cdrtools/mkisofs.exe" ]]; then
-        echo "Missing: mkisofs (expected at C:\Program Files (x86)\cdrtools\mkisofs.exe)"
+    if [[ ! -f "/c/Program Files/Oracle/VirtualBox/VBoxManage.exe" ]]; then
+        echo "Missing: VirtualBox (expected at C:\Program Files\VirtualBox\VBoxManage.exe)"
         exit 1
     fi
     powershell.exe -Command "Start-BitsTransfer -Source '$SHA256SUMS_URL' -Destination SHA256SUMS"
-
 elif [[ "$OSTYPE" == "darwin"* ]]; then
     OS_TYPE="Mac"
     command -v brew &>/dev/null || { echo "Missing: Homebrew"; exit 1; }
@@ -146,6 +140,7 @@ download_cloud_iso() {
 # Set paths relative to the script's location
 CLOUD_IMG_PATH="$SCRIPT_DIR/$UBUNTU_VERSION$FILE_ENDING"
 CLOUD_CONFIG_TMP_DIR="$SCRIPT_DIR/tmp"
+MKISOFS_TMP_DIR="$SCRIPT_DIR/mkisofs"
 CLOUD_CONFIG_PATH="$CLOUD_CONFIG_TMP_DIR/user-data"
 CLOUD_INIT_ISO_PATH="$SCRIPT_DIR/$CLOUD_INIT_ISO"
 QEMU_EFI_PATH="$SCRIPT_DIR/QEMU_EFI.fd"
@@ -220,7 +215,9 @@ EOF
     if [[ "$OS_TYPE" == "Linux" || "$OS_TYPE" == "Mac" ]]; then
         mkisofs -output "$CLOUD_INIT_ISO_PATH" -volid cidata -joliet -rock "$CLOUD_CONFIG_TMP_DIR"
     else
-        powershell.exe -Command "& 'C:\Program Files (x86)\cdrtools\mkisofs.exe' -output '$CLOUD_INIT_ISO_PATH' -volid cidata -joliet -rock '$CLOUD_CONFIG_TMP_DIR'"
+        GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/owaldhorst-hka/mkisofs
+        powershell.exe -Command "& '$MKISOFS_TMP_DIR/mkisofs.exe' -output '$CLOUD_INIT_ISO_PATH' -volid cidata -joliet -rock '$CLOUD_CONFIG_TMP_DIR'"
+        rm -rf "$MKISOFS_TMP_DIR"
     fi
 else
     echo "Using existing cloud-init ISO at $CLOUD_INIT_ISO_PATH"
@@ -229,24 +226,44 @@ fi
 ####################################################################################################
 # Function to create a VM using VirtualBox with OVA
 
-create_virtualbox_vm() {
-    echo "Setting up VM using VirtualBox and OVA..."
+create_virtualbox_vm_windows() {
+    echo "Setting up VM using VirtualBox and OVA on windows..."
 
     # Import OVA into VirtualBox
-    VBoxManage import "$CLOUD_IMG_PATH" --vsys 0 --vmname "$VM_NAME"
+    "/c/Program Files/Oracle/VirtualBox/VBoxManage.exe" import "$CLOUD_IMG_PATH" --vsys 0 --vmname "$VM_NAME"
 
     # Modify VM settings
-    VBoxManage modifyvm "$VM_NAME" --memory $MEMORY_SIZE --cpus $CPU_COUNT
+    "/c/Program Files/Oracle/VirtualBox/VBoxManage.exe" modifyvm "$VM_NAME" --memory $MEMORY_SIZE --cpus $CPU_COUNT
 
     # Attach the cloud-init ISO to the existing IDE controller (already included in the OVA)
-    VBoxManage storageattach "$VM_NAME" --storagectl "IDE" --port 1 --device 0 --type dvddrive --medium "$CLOUD_INIT_ISO_PATH"
+    "/c/Program Files/Oracle/VirtualBox/VBoxManage.exe" storageattach "$VM_NAME" --storagectl "IDE" --port 1 --device 0 --type dvddrive --medium "$CLOUD_INIT_ISO_PATH"
 
     # Configure network (NAT with port forwarding)
-    VBoxManage modifyvm "$VM_NAME" --nic1 nat
-    VBoxManage modifyvm "$VM_NAME" --natpf1 "ssh,tcp,127.0.0.1,$SSH_HOST_PORT,,$SSH_GUEST_PORT"
+    "/c/Program Files/Oracle/VirtualBox/VBoxManage.exe" modifyvm "$VM_NAME" --nic1 nat
+    "/c/Program Files/Oracle/VirtualBox/VBoxManage.exe" modifyvm "$VM_NAME" --natpf1 "ssh,tcp,127.0.0.1,$SSH_HOST_PORT,,$SSH_GUEST_PORT"
 
     # Start VM in headless mode
-    VBoxManage startvm "$VM_NAME" --type headless
+    "/c/Program Files/Oracle/VirtualBox/VBoxManage.exe" startvm "$VM_NAME" --type headless
+}
+
+create_virtualbox_vm_linux() {
+    echo "Setting up VM using VirtualBox and OVA on Linux..."
+
+    # Import OVA into VirtualBox
+    "/usr/lib/virtualbox/VBoxManage" import "$CLOUD_IMG_PATH" --vsys 0 --vmname "$VM_NAME"
+
+    # Modify VM settings
+    "/usr/lib/virtualbox/VBoxManage" modifyvm "$VM_NAME" --memory $MEMORY_SIZE --cpus $CPU_COUNT
+
+    # Attach the cloud-init ISO to the existing IDE controller (already included in the OVA)
+    "/usr/lib/virtualbox/VBoxManage" storageattach "$VM_NAME" --storagectl "IDE" --port 1 --device 0 --type dvddrive --medium "$CLOUD_INIT_ISO_PATH"
+
+    # Configure network (NAT with port forwarding)
+    "/usr/lib/virtualbox/VBoxManage" modifyvm "$VM_NAME" --nic1 nat
+    "/usr/lib/virtualbox/VBoxManage" modifyvm "$VM_NAME" --natpf1 "ssh,tcp,127.0.0.1,$SSH_HOST_PORT,,$SSH_GUEST_PORT"
+
+    # Start VM in headless mode
+    "/usr/lib/virtualbox/VBoxManage" startvm "$VM_NAME" --type headless
 }
 
 ####################################################################################################
@@ -263,21 +280,12 @@ create_qemu_vm() {
         echo "Using existing QEMU EFI Image at $QEMU_EFI_PATH"
     fi
 
-    # Create cloud init iso image
-    if [[ ! -f "$CLOUD_INIT_ISO_PATH" ]]; then
-        echo "Cloud Init Image not found, createing..."
-        mkisofs -output "$CLOUD_INIT_ISO_PATH" -volid cidata -joliet -rock {"$CLOUD_CONFIG_PATH","$CLOUD_CONFIG_TMP_DIR/meta-data"}
-    else
-        echo "Using existing Cloud Init Image at $CLOUD_INIT_ISO_PATH"
-    fi
-
     # Resize the IMG file to the specified size (in MB)
     if [ -n "$IMG_DOWNLOADED" ]; then
         echo "Rezising disk..."
         qemu-img resize $UBUNTU_VERSION$FILE_ENDING "$DISC_SIZE"M
     fi
-
-    # Run the VM using QEMU with ARM architecture
+    # Run the VM using QEMU with ARM architecture on Mac
     qemu-system-aarch64 \
         -m "$MEMORY_SIZE"M \
         -accel hvf \
@@ -286,7 +294,7 @@ create_qemu_vm() {
         -M virt \
         --display none -daemonize -pidfile pidfile.txt \
         -bios QEMU_EFI.fd \
- 	    -device virtio-net-pci,netdev=net0 \
+        -device virtio-net-pci,netdev=net0 \
         -netdev user,id=net0,hostfwd=tcp::"$SSH_HOST_PORT"-:"$SSH_GUEST_PORT" \
         -hda $CLOUD_IMG_PATH \
         -cdrom $CLOUD_INIT_ISO_PATH
@@ -295,8 +303,10 @@ create_qemu_vm() {
 ####################################################################################################
 # Main logic to determine the VM setup based on architecture and OS
 
-if [[ "$VM_TYPE" == "VirtualBox" ]]; then
-    create_virtualbox_vm
+if [[ "$VM_TYPE" == "VirtualBox" && "$OS_TYPE" == "Windows" ]]; then
+    create_virtualbox_vm_windows
+elif [[ "$VM_TYPE" == "VirtualBox" && "$OS_TYPE" == "Linux" ]]; then
+    create_virtualbox_vm_linux
 elif [[ "$VM_TYPE" == "QEMU" ]]; then
     create_qemu_vm
 fi
@@ -313,7 +323,7 @@ fi
 # Clean up tmp folder if it was created by the script
 
 if [[ ! -f "$CLOUD_CONFIG_TMP_DIR" ]]; then
-     rm -rf "$CLOUD_CONFIG_TMP_DIR"
+    rm -rf "$CLOUD_CONFIG_TMP_DIR"
 fi
 
 ####################################################################################################
