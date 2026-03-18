@@ -18,6 +18,9 @@
 
 * Anschließend können Sie sich mit der Maschine über ssh verbinden, indem Sie diese als Host in Visual Studio Code anlegen. Dafür können Sie über den blauen Remote-Window-Knopf im linken unteren Eck mit der Option `Connect to Host` und der darauffolgenden Option `Add new SSH Host` unter Angabe von `ssh -p 2222 labrat@localhost` die Einrichtung durchführen.
 * Nach der Einrichtung können Sie sich mit der Maschine über deren Auswahl in der Option `Connect to Host` verbinden.
+  * Hinweis zur Erstverbindung: Je nach VS-Code-Version können verschiedene Abfragen erscheinen:
+    * Fingerprint-Bestätigung: Bestätigen Sie den SHA-Fingerprint entweder durch Auswahl von Continue oder durch die manuelle Eingabe von yes im Textfeld.
+    * Plattform-Auswahl: Falls Sie nach dem Betriebssystem des Hosts gefragt werden, wählen Sie Linux aus.
 * Sobald Sie mit der Maschine verbunden sind, müssen Sie durch die Option `Open Folder` das Home-Verzeichnis Ihres Nutzers "labrat" öffnen und das Skript "setup.sh" im Unterordner "kn1lab" ausführen.
 * Dafür müssen Sie in Visual Studio Code ein Terminal öffnen und das Skript mit `./setup.sh` ausführen.
 * Dieses Skript setzt Ihre Umgebung final auf und installiert auch alle benötigten Erweiterungen für Visual Studio Code, sodass Sie danach alle Versuche bearbeiten können.
