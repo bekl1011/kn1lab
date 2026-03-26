@@ -266,6 +266,26 @@ create_virtualbox_vm_linux() {
     "/usr/lib/virtualbox/VBoxManage" startvm "$VM_NAME" --type headless
 }
 
+
+create_virtualbox_vm_mac() {
+    echo "Setting up VM using VirtualBox and OVA on Mac..."
+
+    # Import OVA into VirtualBox
+    "/usr/local/bin/VBoxManage" import "$CLOUD_IMG_PATH" --vsys 0 --vmname "$VM_NAME"
+
+    # Modify VM settings
+    "/usr/local/bin/VBoxManage" modifyvm "$VM_NAME" --memory $MEMORY_SIZE --cpus $CPU_COUNT
+
+    # Attach the cloud-init ISO to the existing IDE controller (already included in the OVA)
+    "/usr/local/bin/VBoxManage" storageattach "$VM_NAME" --storagectl "IDE" --port 1 --device 0 --type dvddrive --medium "$CLOUD_INIT_ISO_PATH"
+
+    # Configure network (NAT with port forwarding)
+    "/usr/local/bin/VBoxManage" modifyvm "$VM_NAME" --nic1 nat
+    "/usr/local/bin/VBoxManage" modifyvm "$VM_NAME" --natpf1 "ssh,tcp,127.0.0.1,$SSH_HOST_PORT,,$SSH_GUEST_PORT"
+
+    # Start VM in headless mode
+    "/usr/local/bin/VBoxManage" startvm "$VM_NAME" --type headless
+}
 ####################################################################################################
 # Function to create a VM using QEMU (for ARM-based systems)
 
@@ -307,6 +327,8 @@ if [[ "$VM_TYPE" == "VirtualBox" && "$OS_TYPE" == "Windows" ]]; then
     create_virtualbox_vm_windows
 elif [[ "$VM_TYPE" == "VirtualBox" && "$OS_TYPE" == "Linux" ]]; then
     create_virtualbox_vm_linux
+elif [[ "$VM_TYPE" == "VirtualBox" && "$OS_TYPE" == "Mac" ]]; then
+    create_virtualbox_vm_mac
 elif [[ "$VM_TYPE" == "QEMU" ]]; then
     create_qemu_vm
 fi
