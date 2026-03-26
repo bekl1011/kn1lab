@@ -42,7 +42,7 @@ check_programs() {
 check_homebrew_packages() {
     missing=()
     for pkg in "$@"; do
-        if ! brew list --formula | grep -q "^$pkg\$"; then
+        if ! brew list | grep -q "^$pkg\$"; then
             missing+=("$pkg")
         fi
     done
