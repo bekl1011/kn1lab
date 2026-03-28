@@ -62,6 +62,14 @@ handle_linux_kvm() {
     fi
 }
 
+save_vbox_pid() {
+    if [[ "$OS_TYPE" == "Windows" ]]; then
+        powershell.exe -Command "(Get-Process VBoxHeadless | Where-Object { \$_.CommandLine -like '*$VM_NAME*' }).Id" > pidfile.txt
+    else 
+        pgrep -f "VBoxHeadless --comment $VM_NAME" > pidfile.txt
+    fi
+}
+
 check_and_start_vbox() {
     local vbm="$1"
     if "$vbm" list vms | grep -q "\"$VM_NAME\""; then
@@ -161,7 +169,8 @@ download_cloud_iso() {
     echo "Ubuntu Cloud image not found, downloading..."
     IMG_DOWNLOADED=1
     if [[ "$OS_TYPE" == "Windows" ]]; then
-        powershell.exe -Command "Start-BitsTransfer -Source '$CLOUD_IMG_URL' -Destination '$CLOUD_IMG_PATH'"
+        WIN_PATH=$(cygpath -w "$CLOUD_IMG_PATH")
+        powershell.exe -Command "Start-BitsTransfer -Source '$CLOUD_IMG_URL' -Destination '$WIN_PATH'"
     else
         wget -O "$CLOUD_IMG_PATH" "$CLOUD_IMG_URL"
     fi
@@ -223,7 +232,7 @@ EOF
         mkisofs -output "$CLOUD_INIT_ISO_PATH" -volid cidata -joliet -rock "$CLOUD_CONFIG_TMP_DIR"
     else
         GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/owaldhorst-hka/mkisofs "$MKISOFS_TMP_DIR"
-        powershell.exe -Command "& '$MKISOFS_TMP_DIR/mkisofs.exe' -output '$CLOUD_INIT_ISO_PATH' -volid cidata -joliet -rock '$CLOUD_CONFIG_TMP_DIR'"
+        powershell.exe -Command "& '$(cygpath -w "$MKISOFS_TMP_DIR/mkisofs.exe")' -output '$(cygpath -w "$CLOUD_INIT_ISO_PATH")' -volid cidata -joliet -rock '$(cygpath -w "$CLOUD_CONFIG_TMP_DIR")'"
         rm -rf "$MKISOFS_TMP_DIR"
     fi
 else
@@ -240,7 +249,7 @@ if [[ "$VM_TYPE" == "VirtualBox" ]]; then
     "$VBOX_MANAGE" storageattach "$VM_NAME" --storagectl "IDE" --port 1 --device 0 --type dvddrive --medium "$CLOUD_INIT_ISO_PATH"
     "$VBOX_MANAGE" modifyvm "$VM_NAME" --natpf1 "ssh,tcp,127.0.0.1,$SSH_HOST_PORT,,$SSH_GUEST_PORT"
     "$VBOX_MANAGE" startvm "$VM_NAME" --type headless
-    pgrep -f "VBoxHeadless --comment $VM_NAME" > "$PID_FILE"
+    save_vbox_pid
 
 elif [[ "$VM_TYPE" == "QEMU" ]]; then
     [[ ! -f "$QEMU_EFI_PATH" ]] && wget -O "$QEMU_EFI_PATH" "$QEMU_EFI_URL"
