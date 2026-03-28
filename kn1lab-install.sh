@@ -63,22 +63,20 @@ handle_linux_kvm() {
 }
 
 save_vbox_pid() {
-    echo "Sichere Prozess-ID in pidfile.txt..."
-    for i in {1..5}; do
-        if [[ "$OS_TYPE" == "Windows" ]]; then
-            PID=$(powershell.exe -Command "(Get-Process VBoxHeadless -ErrorAction SilentlyContinue | Where-Object { \$_.CommandLine -like '*$VM_NAME*' }).Id" | tr -d '\r')
-        else
-            PID=$(pgrep -f "VBoxHeadless --comment $VM_NAME")
-        fi
+    echo "Searching for PID of VM: $VM_NAME..."
+    sleep 2
+    if [[ "$OS_TYPE" == "Windows" ]]; then
+        PID=$(powershell.exe -Command "Get-WmiObject Win32_Process -Filter \"Name = 'VBoxHeadless.exe'\" | Where-Object { \$_.CommandLine -like '*$VM_NAME*' } | Select-Object -ExpandProperty ProcessId" | tr -d '\r' | head -n 1)
+    else
+        PID=$(pgrep -f "VBoxHeadless --comment $VM_NAME")
+    fi
 
-        if [[ -n "$PID" ]]; then
-            echo "$PID" > pidfile.txt
-            echo "PID $PID gespeichert."
-            return 0
-        fi
-        sleep 1
-    done
-    echo "Warnung: Konnte PID für $VM_NAME nicht finden. pidfile.txt ist möglicherweise leer."
+    if [[ -n "$PID" ]]; then
+        echo "$PID" > pidfile.txt
+        echo "PID $PID saved to pidfile.txt"
+    else
+        echo "Warning: Could not capture PID. You may need to stop the VM manually."
+    fi
 }
 
 check_and_start_vbox() {
@@ -90,7 +88,7 @@ check_and_start_vbox() {
         else
             echo "Starting existing VM..."
             "$vbm" startvm "$VM_NAME" --type headless
-            pgrep -f "VBoxHeadless --comment $VM_NAME" > pidfile.txt
+            save_vbox_pid
         fi
         exit 0
     fi
