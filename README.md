@@ -16,6 +16,7 @@
 ./kn1lab-install.sh
 ```
 
+* `Wichtig`: Unter Linux können bestimmte KVM-Kernel-Module (`kvm_amd` oder `kvm_intel`) den Start von VirtualBox blockieren. Das Skript erkennt diesen Konflikt und entfernt die entsprechenden Module automatisch. Da hierfür Administratorrechte erforderlich sind, werden Sie gegebenenfalls zur Eingabe Ihres sudo-Passworts aufgefordert.
 * Anschließend können Sie sich mit der Maschine über ssh verbinden, indem Sie diese als Host in Visual Studio Code anlegen. Dafür können Sie über den blauen Remote-Window-Knopf im linken unteren Eck mit der Option `Connect to Host` und der darauffolgenden Option `Add new SSH Host` unter Angabe von `ssh -p 2222 labrat@localhost` die Einrichtung durchführen.
 * Nach der Einrichtung können Sie sich mit der Maschine über deren Auswahl in der Option `Connect to Host` verbinden.
   * Hinweis zur Erstverbindung: Je nach VS-Code-Version können verschiedene Abfragen erscheinen:
