@@ -47,11 +47,11 @@ check_homebrew_packages() {
 }
 
 handle_linux_kvm() {
-    if lsmod | grep -E "kvm_amd|kvm_intel"; then
+    if lsmod | grep -E "^kvm_amd\s|^kvm_intel\s"; then
         echo "KVM module detected. Attempting to remove it to prevent VirtualBox conflicts..."
         sudo modprobe -r kvm_intel kvm_amd 2>/dev/null
         
-        if lsmod | grep -qE "kvm_amd|kvm_intel"; then
+        if lsmod | grep -qE "^kvm_amd\s|^kvm_intel\s"; then
             echo "-------------------------------------------------------------------"
             echo "ERROR: Could not remove KVM. VirtualBox will likely fail."
             echo "Please manually run 'sudo modprobe -r kvm_intel' and try again."
