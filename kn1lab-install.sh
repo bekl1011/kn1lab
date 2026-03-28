@@ -63,11 +63,22 @@ handle_linux_kvm() {
 }
 
 save_vbox_pid() {
-    if [[ "$OS_TYPE" == "Windows" ]]; then
-        powershell.exe -Command "(Get-Process VBoxHeadless | Where-Object { \$_.CommandLine -like '*$VM_NAME*' }).Id" > pidfile.txt
-    else 
-        pgrep -f "VBoxHeadless --comment $VM_NAME" > pidfile.txt
-    fi
+    echo "Sichere Prozess-ID in pidfile.txt..."
+    for i in {1..5}; do
+        if [[ "$OS_TYPE" == "Windows" ]]; then
+            PID=$(powershell.exe -Command "(Get-Process VBoxHeadless -ErrorAction SilentlyContinue | Where-Object { \$_.CommandLine -like '*$VM_NAME*' }).Id" | tr -d '\r')
+        else
+            PID=$(pgrep -f "VBoxHeadless --comment $VM_NAME")
+        fi
+
+        if [[ -n "$PID" ]]; then
+            echo "$PID" > pidfile.txt
+            echo "PID $PID gespeichert."
+            return 0
+        fi
+        sleep 1
+    done
+    echo "Warnung: Konnte PID für $VM_NAME nicht finden. pidfile.txt ist möglicherweise leer."
 }
 
 check_and_start_vbox() {
