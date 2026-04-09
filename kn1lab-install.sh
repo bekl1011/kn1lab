@@ -1,21 +1,57 @@
 #!/bin/bash
 
 ####################################################################################################
-# SSH Key Processing
+# Variables & Constants
+VM_NAME="kn1lab"
+MEMORY_SIZE=4096
+CPU_COUNT=2
+DISC_SIZE=20480 
+SSH_HOST_PORT=2222
+SSH_GUEST_PORT=22
+PID_FILE="pidfile.txt"
+UBUNTU_VERSION="ubuntu-22.04-cloud"
+CLOUD_INIT_ISO="cloud-init.iso"
+SHA256SUMS_URL="https://cloud-images.ubuntu.com/jammy/current/SHA256SUMS"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ARCH="$(uname -m)"
 
-SSH_KEY_FOLDER="$HOME/.ssh/id_rsa.pub"
-if [ -f "$SSH_KEY_FOLDER" ]; then
-    echo "Public SSH key found."
-else
-    echo "No SSH key found. Generating a new one..."
-    ssh-keygen -t rsa -b 4096 -N "" -f "$HOME/.ssh/id_rsa"
-    
-    if [ ! -f "$SSH_KEY_FOLDER" ]; then
-        echo "Failed to generate SSH key."
-        exit 1
+####################################################################################################
+# PID Validation Logic (Cross-Platform)
+
+check_running_vm() {
+    if [ -f "$PID_FILE" ]; then
+        OLD_PID=$(cat "$PID_FILE" | tr -d '\r')
+        echo "Checking if existing PID $OLD_PID is still active..."
+        if kill -0 "$OLD_PID" 2>/dev/null; then
+            if ps -p "$OLD_PID" -o args= 2>/dev/null | grep -qE "VBoxHeadless|qemu-system|VirtualBoxVM"; then
+                echo "-------------------------------------------------------------------"
+                echo "ALREADY RUNNING: VM process $OLD_PID is still active."
+                echo "If you want to restart, stop the VM manually first."
+                echo "-------------------------------------------------------------------"
+                exit 0
+            fi
+        fi
+        echo "Stale pidfile found (Process $OLD_PID not found). Cleaning up..."
+        rm -f "$PID_FILE"
     fi
-fi
-SSH_PUB_KEY=$(cat "$SSH_KEY_FOLDER")
+}
+
+save_vbox_pid() {
+    echo "Searching for PID of VM: $VM_NAME..."
+    sleep 2
+    if [[ "$OS_TYPE" == "Windows" ]]; then
+        PID=$(powershell.exe -Command "Get-WmiObject Win32_Process -Filter \"Name = 'VBoxHeadless.exe'\" | Where-Object { \$_.CommandLine -like '*$VM_NAME*' } | Select-Object -ExpandProperty ProcessId" | tr -d '\r' | head -n 1)
+    else
+        PID=$(pgrep -f "VBoxHeadless --comment $VM_NAME")
+    fi
+
+    if [[ -n "$PID" ]]; then
+        echo "$PID" > "$PID_FILE"
+        echo "PID $PID saved to $PID_FILE"
+    else
+        echo "Warning: Could not capture PID. You may need to stop the VM manually."
+    fi
+}
 
 ####################################################################################################
 # Helper Functions
@@ -47,35 +83,13 @@ check_homebrew_packages() {
 }
 
 handle_linux_kvm() {
-    if lsmod | grep -E "^kvm_amd\s|^kvm_intel\s"; then
+    if lsmod | grep -E "^kvm_amd\s|^kvm_intel\s" >/dev/null; then
         echo "KVM module detected. Attempting to remove it to prevent VirtualBox conflicts..."
         sudo modprobe -r kvm_intel kvm_amd 2>/dev/null
-        
         if lsmod | grep -qE "^kvm_amd\s|^kvm_intel\s"; then
-            echo "-------------------------------------------------------------------"
-            echo "ERROR: Could not remove KVM. VirtualBox will likely fail."
-            echo "Please manually run 'sudo modprobe -r kvm_intel' and try again."
-            echo "-------------------------------------------------------------------"
+            echo "ERROR: Could not remove KVM. Please manually run 'sudo modprobe -r kvm_intel'."
             exit 1
         fi
-        echo "Successfully cleared KVM modules."
-    fi
-}
-
-save_vbox_pid() {
-    echo "Searching for PID of VM: $VM_NAME..."
-    sleep 2
-    if [[ "$OS_TYPE" == "Windows" ]]; then
-        PID=$(powershell.exe -Command "Get-WmiObject Win32_Process -Filter \"Name = 'VBoxHeadless.exe'\" | Where-Object { \$_.CommandLine -like '*$VM_NAME*' } | Select-Object -ExpandProperty ProcessId" | tr -d '\r' | head -n 1)
-    else
-        PID=$(pgrep -f "VBoxHeadless --comment $VM_NAME")
-    fi
-
-    if [[ -n "$PID" ]]; then
-        echo "$PID" > pidfile.txt
-        echo "PID $PID saved to pidfile.txt"
-    else
-        echo "Warning: Could not capture PID. You may need to stop the VM manually."
     fi
 }
 
@@ -85,31 +99,34 @@ check_and_start_vbox() {
         echo "VM '$VM_NAME' already exists."
         if "$vbm" showvminfo "$VM_NAME" --machinereadable | grep -q 'VMState="running"'; then
             echo "VM is already running."
+            # Ensure PID file exists even if VM was started elsewhere
+            save_vbox_pid
+            exit 0
         else
             echo "Starting existing VM..."
             "$vbm" startvm "$VM_NAME" --type headless
             save_vbox_pid
+            exit 0
         fi
-        exit 0
     fi
 }
 
-# Variables
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SHA256SUMS_URL="https://cloud-images.ubuntu.com/jammy/current/SHA256SUMS"
-ARCH="$(uname -m)"
-VM_NAME="kn1lab"
-MEMORY_SIZE=4096
-CPU_COUNT=2
-DISC_SIZE=20480 
-SSH_HOST_PORT=2222
-SSH_GUEST_PORT=22
-CLOUD_INIT_ISO="cloud-init.iso"
-UBUNTU_VERSION="ubuntu-22.04-cloud"
-PID_FILE="pidfile.txt"
+####################################################################################################
+# SSH Key Processing
+
+SSH_KEY_FOLDER="$HOME/.ssh/id_rsa.pub"
+if [ -f "$SSH_KEY_FOLDER" ]; then
+    echo "Public SSH key found."
+else
+    echo "No SSH key found. Generating a new one..."
+    ssh-keygen -t rsa -b 4096 -N "" -f "$HOME/.ssh/id_rsa"
+fi
+SSH_PUB_KEY=$(cat "$SSH_KEY_FOLDER")
 
 ####################################################################################################
-# Detect OS and Pre-checks
+# Detect OS and Initial Checks
+
+check_running_vm
 
 if [[ "$OSTYPE" == "msys"* || "$OSTYPE" == "cygwin" ]]; then
     OS_TYPE="Windows"
@@ -127,17 +144,13 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
         check_and_start_vbox "$VBOX_MANAGE"
         wget -q -O SHA256SUMS "$SHA256SUMS_URL"
     else
-        if [ -f "$PID_FILE" ]; then
-            echo "VM is already running (pidfile exists), exiting..."
-            exit 0
-        fi
         check_homebrew_packages qemu wget cdrtools
     fi
 
 elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
     OS_TYPE="Linux"
     handle_linux_kvm
-    check_programs VBoxManage mkisofs
+    check_programs VBoxManage mkisofs wget
     VBOX_MANAGE=$(command -v VBoxManage)
     check_and_start_vbox "$VBOX_MANAGE"
     wget -q -O SHA256SUMS "$SHA256SUMS_URL"
@@ -187,21 +200,14 @@ download_cloud_iso() {
 
 if [[ ! -f "$CLOUD_IMG_PATH" ]]; then
     download_cloud_iso
-else
-    echo "Using existing Ubuntu Cloud IMG at $CLOUD_IMG_PATH"
 fi
 
 if [[ "$ARCH" != "arm64" ]]; then
-    ACTUAL_HASH=$(sha256sum "$CLOUD_IMG_PATH" | awk '{print $1}' | tr -d '[:space:]' | tr -d '\\')
+    ACTUAL_HASH=$(sha256sum "$CLOUD_IMG_PATH" | awk '{print $1}')
     if [[ "$ACTUAL_HASH" != "$EXPECTED_HASH" ]]; then
-        echo "Checksum mismatch! Retrying download..."
+        echo "Checksum mismatch! Retrying..."
         rm -f "$CLOUD_IMG_PATH"
         download_cloud_iso
-        ACTUAL_HASH=$(sha256sum "$CLOUD_IMG_PATH" | awk '{print $1}' | tr -d '[:space:]' | tr -d '\\')
-        if [[ "$ACTUAL_HASH" != "$EXPECTED_HASH" ]]; then
-            echo "Download failed twice. Check connection."
-            exit 1
-        fi
     fi
     rm -f SHA256SUMS
 fi
@@ -214,18 +220,12 @@ PASSWORD_HASH=$(openssl passwd -6 "kn1lab")
 if [[ ! -f "$CLOUD_INIT_ISO_PATH" ]]; then
     echo "Creating cloud-init ISO..."
     mkdir -p "$CLOUD_CONFIG_TMP_DIR"
-    
-    # Updated runcmd logic: using a single shell line with 'mkdir -p' and '&&' 
-    # ensures that failure in one command is visible and 'mkdir' is robust.
     cat << EOF > "$CLOUD_CONFIG_PATH"
 #cloud-config
-manage_etc_hosts: false
 users:
   - name: labrat
-    sudo:  ALL=(ALL) NOPASSWD:ALL
+    sudo: ALL=(ALL) NOPASSWD:ALL
     shell: /bin/bash
-    groups: [sudo]
-    lock_passwd: false
     passwd: $PASSWORD_HASH
     ssh_authorized_keys:
       - $SSH_PUB_KEY
@@ -237,22 +237,20 @@ runcmd:
 EOF
     touch "$CLOUD_CONFIG_TMP_DIR/meta-data"
     
-    if [[ "$OS_TYPE" == "Linux" || "$OS_TYPE" == "Mac" ]]; then
+    if [[ "$OS_TYPE" != "Windows" ]]; then
         mkisofs -output "$CLOUD_INIT_ISO_PATH" -volid cidata -joliet -rock "$CLOUD_CONFIG_TMP_DIR"
     else
         GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/owaldhorst-hka/mkisofs "$MKISOFS_TMP_DIR"
         powershell.exe -Command "& '$(cygpath -w "$MKISOFS_TMP_DIR/mkisofs.exe")' -output '$(cygpath -w "$CLOUD_INIT_ISO_PATH")' -volid cidata -joliet -rock '$(cygpath -w "$CLOUD_CONFIG_TMP_DIR")'"
         rm -rf "$MKISOFS_TMP_DIR"
     fi
-else
-    echo "Using existing cloud-init ISO at $CLOUD_INIT_ISO_PATH"
 fi
 
 ####################################################################################################
 # Start/Create VM
 
 if [[ "$VM_TYPE" == "VirtualBox" ]]; then
-    echo "Setting up new VirtualBox VM..."
+    echo "Importing and starting VirtualBox VM..."
     "$VBOX_MANAGE" import "$CLOUD_IMG_PATH" --vsys 0 --vmname "$VM_NAME"
     "$VBOX_MANAGE" modifyvm "$VM_NAME" --memory $MEMORY_SIZE --cpus $CPU_COUNT --nic1 nat
     "$VBOX_MANAGE" storageattach "$VM_NAME" --storagectl "IDE" --port 1 --device 0 --type dvddrive --medium "$CLOUD_INIT_ISO_PATH"
@@ -269,6 +267,7 @@ elif [[ "$VM_TYPE" == "QEMU" ]]; then
         --display none -daemonize -pidfile "$PID_FILE" -bios "$QEMU_EFI_PATH" \
         -device virtio-net-pci,netdev=net0 -netdev user,id=net0,hostfwd=tcp::"$SSH_HOST_PORT"-:"$SSH_GUEST_PORT" \
         -hda "$CLOUD_IMG_PATH" -cdrom "$CLOUD_INIT_ISO_PATH"
+    echo "QEMU started. PID saved to $PID_FILE."
 fi
 
 ####################################################################################################
